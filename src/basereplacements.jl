@@ -30,14 +30,10 @@ function show_datatype(io::IO, x::DataType)
     end
 end
 
-function show_trace_entry(io, frame, n; prefix = "")
-    push!(Base.LAST_SHOWN_LINE_INFOS, (string(frame.file), frame.line))
-    print(io, "\n", prefix)
-    show(io, frame, full_path=get(io, :fullpath, true))
-    n > 1 && print(io, " (repeats ", n, " times)")
-end
+
 
 function filepackage(file)
+	file = abspath(file)
 	findlast("julia/base", file) != nothing && return "base"
 
 	path = split(file, "/")
@@ -53,21 +49,27 @@ function filepackage(file)
 	return nothing
 end
 
+
+function showpath(io::IO, path)
+	fullpath = get(io, :fullpath, true)
+	file_info = string(path)
+	if !fullpath
+		modulename = filepackage(file_info)
+		if modulename == nothing
+			modulename = "unknown"
+		end
+		file_info = "$(modulename)$(modulename[end] == 's' ? "'" : "s") $(basename(file_info))"
+	end
+	print(io, file_info)
+end
+
 function show(io::IO, frame::Base.StackFrame; full_path::Bool=false)
     StackTraces.show_spec_linfo(io, frame)
     if frame.file !== StackTraces.empty_sym
-		file_info = string(frame.file)
-		if !full_path
-			modulename = filepackage(file_info)
-			if modulename == nothing
-				modulename = "unknown"
-			end
-			file_info = "$(modulename)s $(basename(file_info))"
-		end
-        file_info = full_path ? string(frame.file) : basename(string(frame.file))
         print(io, " at ")
         Base.with_output_color(get(io, :color, false) && get(io, :backtrace, false) ? Base.stackframe_lineinfo_color() : :nothing, io) do io
-            print(io, file_info, ":")
+			showpath(io, frame.file)
+			print(io, ":")
             if frame.line >= 0
                 print(io, frame.line)
             else
@@ -79,6 +81,225 @@ function show(io::IO, frame::Base.StackFrame; full_path::Bool=false)
         print(io, " [inlined]")
     end
 end
+
+function show_trace_entry(io, frame, n; prefix = "")
+    push!(Base.LAST_SHOWN_LINE_INFOS, (string(frame.file), frame.line))
+    print(io, "\n", prefix)
+    show(io, frame, full_path=get(io, :fullpath, true))
+    n > 1 && print(io, " (repeats ", n, " times)")
+end
+
+function show_backtrace(io::IO, t::Vector)
+    resize!(Base.LAST_SHOWN_LINE_INFOS, 0)
+    filtered = Base.process_backtrace(t)
+    isempty(filtered) && return
+
+    if length(filtered) == 1 && StackTraces.is_top_level_frame(filtered[1][1])
+        f = filtered[1][1]
+        if f.line == 0 && f.file == Symbol("")
+            # don't show a single top-level frame with no location info
+            return
+        end
+    end
+
+    print(io, "\nStacktrace:")
+    if length(filtered) < Base.BIG_STACKTRACE_SIZE
+        # Fast track: no duplicate stack frame detection.
+        try Base.invokelatest(update_stackframes_callback[], filtered) catch end
+        frame_counter = 0
+        for (last_frame, n) in filtered
+            frame_counter += 1
+            show_trace_entry(IOContext(io, :backtrace => true), last_frame, n, prefix = string(" [", frame_counter, "] "))
+        end
+        return
+    end
+
+    Base.show_reduced_backtrace(IOContext(io, :backtrace => true), filtered, true)
+end
+
+function showerror(io::IO, ex, bt; backtrace=true)
+    try
+        Base.with_output_color(get(io, :color, false) ? Base.error_color() : :nothing, io) do io
+            showerror(io, ex)
+        end
+    finally
+        backtrace && show_backtrace(io, bt)
+    end
+end
+
+function show_method_candidates(io::IO, ex::MethodError, @nospecialize kwargs=())
+    is_arg_types = isa(ex.args, DataType)
+    arg_types = is_arg_types ? ex.args : Base.typesof(ex.args...)
+    arg_types_param = Any[arg_types.parameters...]
+    # Displays the closest candidates of the given function by looping over the
+    # functions methods and counting the number of matching arguments.
+    f = ex.f
+    ft = typeof(f)
+    lines = []
+    # These functions are special cased to only show if first argument is matched.
+    special = f in [convert, getindex, setindex!]
+    funcs = Any[(f, arg_types_param)]
+
+    # An incorrect call method produces a MethodError for convert.
+    # It also happens that users type convert when they mean call. So
+    # pool MethodErrors for these two functions.
+    if f === convert && !isempty(arg_types_param)
+        at1 = arg_types_param[1]
+        if isa(at1,DataType) && (at1::DataType).name === Type.body.name && !Core.Compiler.has_free_typevars(at1)
+            push!(funcs, (at1.parameters[1], arg_types_param[2:end]))
+        end
+    end
+
+    for (func, arg_types_param) in funcs
+        for method in methods(func)
+            buf = IOBuffer()
+            iob = IOContext(buf, io)
+            tv = Any[]
+            sig0 = method.sig
+            while isa(sig0, UnionAll)
+                push!(tv, sig0.var)
+                sig0 = sig0.body
+            end
+            s1 = sig0.parameters[1]
+            sig = sig0.parameters[2:end]
+            print(iob, "  ")
+            if !isa(func, Base.rewrap_unionall(s1, method.sig))
+                # function itself doesn't match
+                continue
+            else
+                # TODO: use the methodshow logic here
+                use_constructor_syntax = isa(func, Type)
+                print(iob, use_constructor_syntax ? func : typeof(func).name.mt.name)
+            end
+            print(iob, "(")
+            t_i = copy(arg_types_param)
+            right_matches = 0
+            for i = 1 : min(length(t_i), length(sig))
+                i > 1 && print(iob, ", ")
+                # If isvarargtype then it checks whether the rest of the input arguments matches
+                # the varargtype
+                if false #Base.isvarargtype(sig[i])
+                    sigstr = string(Base.unwrap_unionall(sig[i]).parameters[1], "...")
+                    j = length(t_i)
+                else
+                    sigstr = string(sig[i])
+                    j = i
+                end
+                # Checks if the type of arg 1:i of the input intersects with the current method
+                t_in = typeintersect(Base.rewrap_unionall(Tuple{sig[1:i]...}, method.sig),
+                                     Base.rewrap_unionall(Tuple{t_i[1:j]...}, method.sig))
+                # If the function is one of the special cased then it should break the loop if
+                # the type of the first argument is not matched.
+                t_in === Union{} && special && i == 1 && break
+                if t_in === Union{}
+                    if get(io, :color, false)
+                        Base.with_output_color(Base.error_color(), iob) do iob
+                            print(iob, "::$sigstr")
+                        end
+                    else
+                        print(iob, "!Matched::$sigstr")
+                    end
+                    # If there is no typeintersect then the type signature from the method is
+                    # inserted in t_i this ensures if the type at the next i matches the type
+                    # signature then there will be a type intersect
+                    t_i[i] = sig[i]
+                else
+                    right_matches += j==i ? 1 : 0
+                    print(iob, "::$sigstr")
+                end
+            end
+            special && right_matches == 0 && continue
+
+            # if length(t_i) > length(sig) && !isempty(sig) && Base.isvarargtype(sig[end])
+            #     # It ensures that methods like f(a::AbstractString...) gets the correct
+            #     # number of right_matches
+            #     for t in arg_types_param[length(sig):end]
+            #         if t <: Base.rewrap_unionall(Base.unwrap_unionall(sig[end]).parameters[1], method.sig)
+            #             right_matches += 1
+            #         end
+            #     end
+            # end
+
+            if right_matches > 0 || length(ex.args) < 2
+                if length(t_i) < length(sig)
+                    # If the methods args is longer than input then the method
+                    # arguments is printed as not a match
+                    for (k, sigtype) in enumerate(sig[length(t_i)+1:end])
+                        #sigtype = isvarargtype(sigtype) ? unwrap_unionall(sigtype) : sigtype
+                        if false #Base.isvarargtype(sigtype)
+                            sigstr = string(sigtype.parameters[1], "...")
+                        else
+                            sigstr = string(sigtype)
+                        end
+                        if !((min(length(t_i), length(sig)) == 0) && k==1)
+                            print(iob, ", ")
+                        end
+                        if get(io, :color, false)
+                            Base.with_output_color(Base.error_color(), iob) do iob
+                                print(iob, "::$sigstr")
+                            end
+                        else
+                            print(iob, "!Matched::$sigstr")
+                        end
+                    end
+                end
+                kwords = Symbol[]
+                # if isdefined(ft.name.mt, :kwsorter)
+                #     kwsorter_t = typeof(ft.name.mt.kwsorter)
+                #     kwords = Base.kwarg_decl(method, kwsorter_t)
+                #     length(kwords) > 0 && print(iob, "; ", join(kwords, ", "))
+                # end
+                print(iob, ")")
+                Base.show_method_params(iob, tv)
+                print(iob, " at ")
+				showpath(iob, method.file)
+				print(iob, ":", method.line)
+                if !isempty(kwargs)
+                    unexpected = Symbol[]
+                    if isempty(kwords) || !(any(endswith(string(kword), "...") for kword in kwords))
+                        for (k, v) in kwargs
+                            if !(k in kwords)
+                                push!(unexpected, k)
+                            end
+                        end
+                    end
+                    if !isempty(unexpected)
+                        Base.with_output_color(Base.error_color(), iob) do iob
+                            plur = length(unexpected) > 1 ? "s" : ""
+                            print(iob, " got unsupported keyword argument$plur \"", join(unexpected, "\", \""), "\"")
+                        end
+                    end
+                end
+                if ex.world < Base.min_world(method)
+                    print(iob, " (method too new to be called from this world context.)")
+                elseif ex.world > Base.max_world(method)
+                    print(iob, " (method deleted before this world age.)")
+                end
+                # TODO: indicate if it's in the wrong world
+                push!(lines, (buf, right_matches))
+            end
+        end
+    end
+
+    if !isempty(lines) # Display up to three closest candidates
+        Base.with_output_color(:normal, io) do io
+            println(io)
+            print(io, "Closest candidates are:")
+            sort!(lines, by = x -> -x[2])
+            i = 0
+            for line in lines
+                println(io)
+                if i >= 3
+                    print(io, "  ...")
+                    break
+                end
+                i += 1
+                print(io, String(take!(line[1])))
+            end
+        end
+    end
+end
+
 
 function showerror(io::IO, ex::MethodError)
     # ex.args is a tuple type if it was thrown from `invoke` and is
