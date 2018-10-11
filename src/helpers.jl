@@ -20,4 +20,15 @@ function begyourpardon(collapsein=0)
     end
 end
 
+macro comeagain(e, collapsein=0)
+    return quote
+        try
+            $e
+        catch err
+            showerror(IOContext(stdout, :collapsein => $collapsein), err,
+                catch_backtrace(), backtrace=true)
+        end
+    end
+end
+
 byp = begyourpardon
