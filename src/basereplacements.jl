@@ -62,7 +62,7 @@ function show(io::IO, frame::Base.StackFrame; full_path::Bool=false)
 			if modulename == nothing
 				modulename = "unknown"
 			end
-			file_info = "$(moldulename)s $(basename(file_info))"
+			file_info = "$(modulename)s $(basename(file_info))"
 		end
         file_info = full_path ? string(frame.file) : basename(string(frame.file))
         print(io, " at ")
