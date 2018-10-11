@@ -15,7 +15,7 @@ function begyourpardon()
     last = Main.ans
 
     # if there wasn't one, assume there was an exception and recatch it
-    if ans == nothing
+    if last == nothing
         try
             rethrow()
         catch e
