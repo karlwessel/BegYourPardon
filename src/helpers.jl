@@ -19,7 +19,7 @@ function begyourpardon()
         try
             rethrow()
         catch e
-            showerror(lio, e)
+            showerror(lio, e, catch_backtrace(), backtrace=true)
         end
     else
         show(lio, last)

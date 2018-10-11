@@ -1,5 +1,5 @@
 
-function show_datatype(io::HelpIO, x::DataType)
+function show_datatype(io::IO, x::DataType)
     istuple = x.name === Tuple.name
     if (!isempty(x.parameters) || istuple) && x !== Tuple
         n = length(x.parameters)
@@ -30,7 +30,7 @@ function show_datatype(io::HelpIO, x::DataType)
 end
 
 
-function showerror(io::HelpIO, ex::MethodError)
+function showerror(io::IO, ex::MethodError)
     # ex.args is a tuple type if it was thrown from `invoke` and is
     # a tuple of the arguments otherwise.
     is_arg_types = isa(ex.args, DataType)
