@@ -12,7 +12,7 @@ function begyourpardon()
     lio = HelpIO(IOContext(stdout, :limit => true))
 
     # get the last shown value
-    last = ans
+    last = Main.ans
 
     # if there wasn't one, assume there was an exception and recatch it
     if ans == nothing
