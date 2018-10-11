@@ -22,7 +22,7 @@ end
 macro comeagain(e, collapsein=0)
     return quote
         try
-            $e
+            $(esc(e))
         catch err
             showerror(IOContext(stdout, :collapsein => $collapsein, :fullpath=>false), err,
                 catch_backtrace(), backtrace=true)
