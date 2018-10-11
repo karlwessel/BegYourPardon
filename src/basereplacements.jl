@@ -8,7 +8,7 @@ function show_datatype(io::IO, x::DataType)
         if istuple && n > 3 && all(i -> (x.parameters[1] === i), x.parameters)
             print(io, "NTuple{", n, ',', x.parameters[1], "}")
         else
-            show_type_name(io, x.name)
+            Base.show_type_name(io, x.name)
             # Do not print the type parameters for the primary type if we are
             # printing a method signature or type parameter.
             # Always print the type parameter if we are printing the type directly
@@ -26,7 +26,7 @@ function show_datatype(io::IO, x::DataType)
             print(io, '}')
         end
     else
-        show_type_name(io, x.name)
+        Base.show_type_name(io, x.name)
     end
 end
 
@@ -37,17 +37,60 @@ function show_trace_entry(io, frame, n; prefix = "")
     n > 1 && print(io, " (repeats ", n, " times)")
 end
 
+function filepackage(file)
+	findlast("julia/base", file) != nothing && return "base"
+
+	path = split(file, "/")
+
+	if findlast("julia/stdlib", file) != nothing
+		ind = findlast(x->x=="src", path)
+		ind != nothing && return path[ind-1]
+	end
+
+	pind = findlast(x->x=="packages", path)
+	pind != nothing && pind < length(path) && return path[pind+1]
+
+	return nothing
+end
+
+function show(io::IO, frame::Base.StackFrame; full_path::Bool=false)
+    StackTraces.show_spec_linfo(io, frame)
+    if frame.file !== StackTraces.empty_sym
+		file_info = string(frame.file)
+		if !full_path
+			modulename = filepackage(file_info)
+			if modulename == nothing
+				modulename = "unknown"
+			end
+			file_info = "$(moldulename)s $(basename(file_info))"
+		end
+        file_info = full_path ? string(frame.file) : basename(string(frame.file))
+        print(io, " at ")
+        Base.with_output_color(get(io, :color, false) && get(io, :backtrace, false) ? Base.stackframe_lineinfo_color() : :nothing, io) do io
+            print(io, file_info, ":")
+            if frame.line >= 0
+                print(io, frame.line)
+            else
+                print(io, "?")
+            end
+        end
+    end
+    if frame.inlined
+        print(io, " [inlined]")
+    end
+end
+
 function showerror(io::IO, ex::MethodError)
     # ex.args is a tuple type if it was thrown from `invoke` and is
     # a tuple of the arguments otherwise.
     is_arg_types = isa(ex.args, DataType)
-    arg_types = is_arg_types ? ex.args : typesof(ex.args...)
+    arg_types = is_arg_types ? ex.args : Base.typesof(ex.args...)
     f = ex.f
-    meth = methods_including_ambiguous(f, arg_types)
+    meth = Base.methods_including_ambiguous(f, arg_types)
     if length(meth) > 1
-        return showerror_ambiguous(io, meth, f, arg_types)
+        return Base.showerror_ambiguous(io, meth, f, arg_types)
     end
-    arg_types_param::SimpleVector = arg_types.parameters
+    arg_types_param::Base.SimpleVector = arg_types.parameters
     print(io, "MethodError: ")
     ft = typeof(f)
     name = ft.name.mt.name
@@ -134,7 +177,7 @@ function showerror(io::IO, ex::MethodError)
         end
     end
     try
-        show_method_candidates(io, ex, kwargs)
+        Base.show_method_candidates(io, ex, kwargs)
     catch ex
         @error "Error showing method candidates, aborted" exception=ex,catch_backtrace()
     end

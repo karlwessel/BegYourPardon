@@ -1,5 +1,4 @@
 
-last = nothing
 function begyourpardon(collapsein=0)
     # reprint the last output with limit enabled
     lio = IOContext(stdout, :collapsein => collapsein)
