@@ -25,7 +25,7 @@ macro comeagain(e, collapsein=0)
         try
             $e
         catch err
-            showerror(IOContext(stdout, :collapsein => $collapsein), err,
+            showerror(IOContext(stdout, :collapsein => $collapsein, :fullpath=>false), err,
                 catch_backtrace(), backtrace=true)
         end
     end

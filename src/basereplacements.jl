@@ -30,6 +30,12 @@ function show_datatype(io::IO, x::DataType)
     end
 end
 
+function show_trace_entry(io, frame, n; prefix = "")
+    push!(LAST_SHOWN_LINE_INFOS, (string(frame.file), frame.line))
+    print(io, "\n", prefix)
+    show(io, frame, full_path=get(io, :fullpath, false))
+    n > 1 && print(io, " (repeats ", n, " times)")
+end
 
 function showerror(io::IO, ex::MethodError)
     # ex.args is a tuple type if it was thrown from `invoke` and is
