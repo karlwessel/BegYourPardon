@@ -6,5 +6,6 @@ import Base: write, get, showerror, show_datatype
 export begyourpardon, byp
 
 include("helpers.jl")
+include("basereplacements.jl")
 
 end # module
