@@ -33,7 +33,7 @@ end
 function show_trace_entry(io, frame, n; prefix = "")
     push!(Base.LAST_SHOWN_LINE_INFOS, (string(frame.file), frame.line))
     print(io, "\n", prefix)
-    show(io, frame, full_path=get(io, :fullpath, false))
+    show(io, frame, full_path=get(io, :fullpath, true))
     n > 1 && print(io, " (repeats ", n, " times)")
 end
 
