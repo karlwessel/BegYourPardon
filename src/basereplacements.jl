@@ -14,9 +14,10 @@ function show_datatype(io::IO, x::DataType)
             # Always print the type parameter if we are printing the type directly
             # since this information is still useful.
             print(io, '{')
-            if !get(io, :limit, false)
+			collapsein = get(io, :collapsein, Inf)
+            if collapsein > 0
 		        for (i, p) in enumerate(x.parameters)
-	                show(io, p)
+	                show(IOContext(io, :collapsein => collapsein-1), p)
 	                i < n && print(io, ',')
 	            end
 			else

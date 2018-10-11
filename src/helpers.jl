@@ -1,15 +1,8 @@
-struct HelpIO <: IO
-    parent::IO
-end
 
-for op ∈ [String, Symbol, Char, UInt8]
-    @eval write(io::HelpIO, x::$op) = write(io.parent, x)
-end
-get(io::HelpIO, key, default) = get(io.parent.dict, key, default)
-
-function begyourpardon()
+last = nothing
+function begyourpardon(collapsein=0)
     # reprint the last output with limit enabled
-    lio = HelpIO(IOContext(stdout, :limit => true))
+    lio = IOContext(stdout, :collapsein => collapsein)
 
     # get the last shown value
     last = Main.ans
@@ -19,8 +12,9 @@ function begyourpardon()
         try
             rethrow()
         catch e
-            showerror(lio, e, catch_backtrace(), backtrace=true)
+            last = e
         end
+        showerror(lio, last)
     else
         show(lio, last)
     end
