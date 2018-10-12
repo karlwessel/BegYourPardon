@@ -56,9 +56,11 @@ function showpath(io::IO, path)
 	if !fullpath
 		modulename = filepackage(file_info)
 		if modulename == nothing
-			modulename = "unknown"
+			modulename = "unknown package"
+		else
+			modulename = "package $(modulename)"
 		end
-		file_info = "$(modulename)$(modulename[end] == 's' ? "'" : "s") $(basename(file_info))"
+		file_info = "file $(basename(file_info)) in $(modulename)"
 	end
 	print(io, file_info)
 end
@@ -66,15 +68,16 @@ end
 function show(io::IO, frame::Base.StackFrame; full_path::Bool=false)
     StackTraces.show_spec_linfo(io, frame)
     if frame.file !== StackTraces.empty_sym
-        print(io, " at ")
+		println()
+        print(io, "\t at line ")
         Base.with_output_color(get(io, :color, false) && get(io, :backtrace, false) ? Base.stackframe_lineinfo_color() : :nothing, io) do io
-			showpath(io, frame.file)
-			print(io, ":")
-            if frame.line >= 0
+	        if frame.line >= 0
                 print(io, frame.line)
             else
                 print(io, "?")
             end
+			print(io, " in ")
+			showpath(io, frame.file)
         end
     end
     if frame.inlined
