@@ -31,6 +31,7 @@ end
 
 @testset "Test showticket" begin
     showticket("5")
+    showticket()
 
     @test showticket("6") == nothing
     @test showticket("1") == nothing
