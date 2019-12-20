@@ -7,18 +7,30 @@ setticketdir(dir) = (global ticketdir = dir)
 function uniqueid()
     ids = (tryparse(Int, y) for y in readdir(ticketdir))
     validids = (x for x in ids if !isnothing(x))
+    validids = union(validids, keys(ticketcache))
     isempty(validids) && return "1"
     return string(maximum(validids) + 1)
 end
 
 lastticket = nothing
 
+
 """Stores all available data for a ticket."""
 struct TicketData
     id
     err
     bt
+    function TicketData(id, err, bt)
+        if !(id in keys(ticketcache))
+            ticket = new(id, err, bt)
+            global ticketcache[id] = ticket
+        else
+            ticket = ticketcache[id]
+        end
+        return ticket
+    end
 end
+ticketcache = Dict{String, TicketData}()
 TicketData(err, bt) = TicketData(uniqueid(), err, bt)
 
 """Return the path of the file for the passed ticket."""
@@ -29,11 +41,15 @@ ticketfile(err::TicketData) = ticketfile(id(err))
 storeticket(err) = serialize(ticketfile(err), err)
 """Load the ticket with the passed id from file system."""
 function loadticket(id::AbstractString)
+    id in keys(ticketcache) && return ticketcache[id]
+
     file = ticketfile(id)
     !isfile(file) && return nothing
 
     try
-        deserialize(file)
+        ticket = deserialize(file)
+        global ticketcache[id] = ticket
+        return ticket
     catch EOFError
         return nothing
     end
@@ -103,3 +119,4 @@ macro createticket(e)
         end
     end
 end
+
