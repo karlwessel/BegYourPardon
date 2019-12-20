@@ -84,7 +84,7 @@ function showticket(data::TicketData)
     showerror(IOContext(stdout, :fullpath=>false),
         data.err, data.bt, backtrace=true)
     global lastticket = data
-    println("\nFor more information on this error see `help('$(id(data))')")
+    println("""\nFor more information on this error see `help("$(id(data))")`""")
 end
 showticket(x::Nothing) = println("No ticket with the passed id found!")
 showticket(id::AbstractString) = showticket(loadticket(id))
