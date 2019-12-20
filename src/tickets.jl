@@ -5,9 +5,9 @@ setticketdir(dir) = (global ticketdir = dir)
 
 # TODO: create random ids (integers) until no ticket (file) for that id exists
 function uniqueid()
-    ids = (tryparse(Int, y) for y in readdir(ticketdir))
+    ids = union(readdir(ticketdir), keys(ticketcache))
+    ids = (tryparse(Int, y) for y in ids)
     validids = (x for x in ids if !isnothing(x))
-    validids = union(validids, keys(ticketcache))
     isempty(validids) && return "1"
     return string(maximum(validids) + 1)
 end
