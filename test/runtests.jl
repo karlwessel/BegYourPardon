@@ -21,7 +21,7 @@ end
 
 @testset "Test @createticket" begin
     @test @createticket sin(0) == 0
-    @test isnothing(@createticket sin("a") == 0)
+    @test isnothing(@createticket sin("a"))
 end
 
 @testset "Test help" begin
