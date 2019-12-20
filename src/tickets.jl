@@ -20,9 +20,10 @@ struct TicketData
     id
     err
     bt
-    function TicketData(id, err, bt)
+    red
+    function TicketData(id, err, bt, red)
         if !(id in keys(ticketcache))
-            ticket = new(id, err, bt)
+            ticket = new(id, err, bt, red)
             global ticketcache[id] = ticket
         else
             ticket = ticketcache[id]
@@ -31,7 +32,8 @@ struct TicketData
     end
 end
 ticketcache = Dict{String, TicketData}()
-TicketData(err, bt) = TicketData(uniqueid(), err, bt)
+TicketData(err, bt) =
+    TicketData(uniqueid(), err, bt, Base.process_backtrace(bt))
 
 """Return the path of the file for the passed ticket."""
 ticketfile(id::AbstractString) = joinpath(ticketdir, id)

@@ -49,14 +49,13 @@ end
 using Base.StackTraces
 
 function showbacktrace(ticket::TicketData)
-    filtered = Base.process_backtrace(ticket.bt)
+    filtered = ticket.red
     frame_counter = 0
     io = IOContext(stdout, :backtrace => true)
     print(io, """
     Reading this backtrace top down gives you the function calls in order
       '[1] called [2] called ... called [n]'
     where '[n]' is the function in which the error occured.
-    You probably want to read this backtrace bottom up.
 
     Execution started in """)
     for (last_frame, n) in reverse(filtered)
