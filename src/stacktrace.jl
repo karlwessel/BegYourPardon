@@ -1,16 +1,6 @@
 using BegYourPardon: TicketData, loadticket
 
-function testerrorlevel3()
-    throw("something happened!")
-end
 
-function testerrorlevel2()
-    testerrorlevel3()
-end
-
-function testerrorlevel1()
-    testerrorlevel2()
-end
 
 function filepackage(file)
 	file = abspath(file)
@@ -32,7 +22,7 @@ end
 
 
 function showpath(io::IO, path)
-	fullpath = get(io, :fullpath, true)
+	fullpath = get(io, :fullpath, false)
 	file_info = string(path)
 	if !fullpath
 		modulename = filepackage(file_info)
