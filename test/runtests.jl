@@ -19,9 +19,9 @@ BegYourPardon.setticketdir(tmp)
     @test BegYourPardon.uniqueid() == "5"
 end
 
-@testset "Test @createticket" begin
-    @test @createticket sin(0) == 0
-    @test isnothing(@createticket sin("a"))
+@testset "Test @comeagain" begin
+    @test @comeagain sin(0) == 0
+    @test isnothing(@comeagain sin("a"))
 end
 
 @testset "Test help" begin
@@ -29,12 +29,12 @@ end
     help("6")
 end
 
-@testset "Test showticket" begin
-    showticket("5")
-    showticket()
+@testset "Test showerror" begin
+    showerror("5")
+    showerror()
 
-    @test showticket("6") == nothing
-    @test showticket("1") == nothing
+    @test showerror("6") == nothing
+    @test showerror("1") == nothing
 end
 
 BegYourPardon.setticketdir(original)

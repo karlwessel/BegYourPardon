@@ -67,57 +67,57 @@ id(err::TicketData) = err.id
 
 
 """
-Print general and ticket specific help for the passed ticket.
+Print general and error specific help for the error with the passed id.
 
-TODO: actually try to load the ticket and print special help depending on
+TODO: actually try to load the error and print special help depending on
 error type.
 """
 help(id::AbstractString) = println("""
-Using the ticket id '$id' there are several ways you can get more
+Using the error id '$id' there are several ways you can get more
 information on the error. For example:
 
-showticket('$id') will reprint the error message.
+showerror('$id') will reprint the error message.
 
-You can always omit the ticket id and the last displayed ticket will be used.
+You can always omit the error id and the last displayed error will be used.
 """)
 
-"""Print the passed ticket in default style."""
-function showticket(data::TicketData)
+"""Print the error with the passed id in default style."""
+function Base.showerror(data::TicketData)
     showerror(IOContext(stdout, :fullpath=>false),
         data.err, data.bt, backtrace=true)
     global lastticket = data
     println("""\nFor more information on this error see `help("$(id(data))")`""")
 end
-showticket(x::Nothing) = println("No ticket with the passed id found!")
-showticket(id::AbstractString) = showticket(loadticket(id))
-showticket() = showticket(lastticket)
+Base.showerror(x::Nothing) = println("No error with the passed id found!")
+Base.showerror(id::AbstractString) = showerror(loadticket(id))
+Base.showerror() = showerror(lastticket)
 
 """
 Execute the passed expression and in case an error is thrown create and
-display a ticket for that error.
+display an id for that error.
 
-Note that the createticket macro catches the exception, prints the ticket
+Note that the comeagain macro catches the exception, prints the error
 for it but does not forward the original exception, instead it just returns
 nothing.
 
 This means that although `sin('a')` throws a MethodError
-`@createticket sin('a')` does not, instead it just returns `nothing`.
+`@comeagain sin('a')` does not, instead it just returns `nothing`.
 
 TODO: The stack trace of the error is different from the stacktrace when
-the error happens without using `createticket` in the way that it includes the
-call to createticket. In the future this line should be removed from the backtrace.
+the error happens without using `comeagain` in the way that it includes the
+call to comeagain. In the future this line should be removed from the backtrace.
 
 TODO: it would also be nice if the macro would return the TicketData object
 created, but that doesn't work yet...
 """
-macro createticket(e)
+macro comeagain(e)
     return quote
         try
             $(esc(e))
         catch err
             data = TicketData(err, catch_backtrace())
             storeticket(data)
-            showticket(data)
+            showerror(data)
         end
     end
 end
