@@ -1,3 +1,4 @@
+import Base: showerror, show_datatype, show_trace_entry, show, show_method_candidates
 
 function show_datatype(io::IO, x::DataType)
     istuple = x.name === Tuple.name
