@@ -31,24 +31,13 @@ function _show_datatype(io::IO, x::DataType)
     end
 end
 
-function _show(io::IO, @nospecialize(x::Type))
+typeshow(io::IO, x::DataType) = Base.show_datatype(io, x)
+function typeshow(io::IO, x::Union)
+    print(io, "Union")
+    Base.show_delim_array(io, Base.uniontypes(x), '{', ',', '}', false)
+end
+function typeshow(io::IO, x::UnionAll)
     collapsein = get(io, :collapsein, Inf)
-
-    if x isa DataType
-        Base.show_datatype(io, x)
-        return
-    elseif x isa Union
-        print(io, "Union")
-        if collapsein > -1
-            Base.show_delim_array(IOContext(io, :collapsein => collapsein),
-                Base.uniontypes(x), '{', ',', '}', false)
-        else
-			print(io, "{...}")
-	    end
-        return
-    end
-    x::UnionAll
-
     if Base.print_without_params(x)
         return show(io, Base.unwrap_unionall(x).name)
     end
@@ -74,6 +63,6 @@ function _show(io::IO, @nospecialize(x::Type))
     end
 end
 
-Base.show(io::IO, @nospecialize(x::Type)) = _show(io, x)
+Base.show(io::IO, @nospecialize(x::Type)) = typeshow(io, x)
 Base.show_datatype(io::IO, x::DataType) = _show_datatype(io, x)
 
