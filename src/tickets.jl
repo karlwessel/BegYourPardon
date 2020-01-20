@@ -82,14 +82,15 @@ You can always omit the error id and the last displayed error will be used.
 """)
 
 """Print the error with the passed id in default style."""
-function Base.showerror(data::TicketData)
-    showerror(IOContext(stdout, :fullpath=>false),
+function Base.showerror(data::TicketData, typedepth=1)
+    showerror(IOContext(stdout, :fullpath=>false, :collapsein => typedepth),
         data.err, data.bt, backtrace=true)
     global lastticket = data
     println("""\nFor more information on this error see `help("$(id(data))")`""")
 end
-Base.showerror(x::Nothing) = println("No error with the passed id found!")
-Base.showerror(id::AbstractString) = showerror(loadticket(id))
+Base.showerror(x::Nothing, typedepth=1) = println("No error with the passed id found!")
+Base.showerror(id::AbstractString, typedepth=1) =
+    showerror(loadticket(id), typedepth)
 Base.showerror() = showerror(lastticket)
 
 """
